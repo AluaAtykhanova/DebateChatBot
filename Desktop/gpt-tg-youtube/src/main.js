@@ -1,10 +1,57 @@
-import {Context, Telegraf, session} from 'telegraf' 
-import {message} from 'telegraf/filters'
-import {code} from 'telegraf/format'
 import config from 'config'
-import {oga} from './oga.js'
-import {openai} from './openai.js'
+import { initializeAgentExecutorWithOptions } from "langchain/agents"
+import { OpenAI } from "langchain/llms/openai"
+import { SerpAPI } from "langchain/tools"
+import { Calculator } from "langchain/tools/calculator"
+import { Telegraf, session } from 'telegraf'
+import { message } from 'telegraf/filters'
+import { code } from 'telegraf/format'
+import { oga } from './oga.js'
+import { openai } from './openai.js'
 
+
+const model = new OpenAI({openAIApiKey:config.get('OPENAI_KEY') , temperature: 0 });
+const tools = [
+  new SerpAPI(config.get('SERPAPI_API_KEY'), {
+    location: "Austin,Texas,United States",
+    hl: "en",
+    gl: "us",
+  }),
+  new Calculator(),
+];
+
+const executor = await initializeAgentExecutorWithOptions(tools, model, {
+  agentType: "zero-shot-react-description",
+});
+console.log("Loaded agent.");
+
+const input =
+  "Who is Olivia Wilde's boyfriend?" +
+  " What is his current age raised to the 0.23 power?";
+console.log(`Executing with input "${input}"...`);
+
+const result = await executor.call({ input });
+
+console.log(`Got output ${result.output}`);
+
+
+// import { PromptTemplate } from "langchain/prompts"
+
+// const model = new OpenAI({, temperature: 0.9 });
+// const template = "What is a good name for a company that makes {product}?";
+// const prompt = new PromptTemplate({
+//   template: template,
+//   inputVariables: ["product"],
+// });
+
+// import { LLMChain } from "langchain/chains";
+
+// const chain = new LLMChain({ llm: model, prompt: prompt });
+
+// const res = await prompt.format({ product: "SALAM BRO" });
+// console.log(res);
+
+////////////////////////////////////////////////
 console.log(config.get('TEST_ENV'))
 
 const INITIAL_SESSION = {
@@ -53,6 +100,8 @@ bot.on(message('voice'), async (ctx) =>{
     console.log('Error while voice message' , e.message)
 }
 })
+
+console.log(INITIAL_SESSION)
 
 bot.on(message('text'), async (ctx) =>{
     ctx.session ??= INITIAL_SESSION
