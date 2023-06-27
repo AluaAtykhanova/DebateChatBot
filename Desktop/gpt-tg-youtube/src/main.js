@@ -1,57 +1,16 @@
 import config from 'config'
 import { initializeAgentExecutorWithOptions } from "langchain/agents"
+import { OpenAIEmbeddings } from "langchain/embeddings/openai"
 import { OpenAI } from "langchain/llms/openai"
 import { SerpAPI } from "langchain/tools"
 import { Calculator } from "langchain/tools/calculator"
+import { WebBrowser } from "langchain/tools/webbrowser"
 import { Telegraf, session } from 'telegraf'
 import { message } from 'telegraf/filters'
 import { code } from 'telegraf/format'
 import { oga } from './oga.js'
 import { openai } from './openai.js'
 
-
-const model = new OpenAI({openAIApiKey:config.get('OPENAI_KEY') , temperature: 0 });
-const tools = [
-  new SerpAPI(config.get('SERPAPI_API_KEY'), {
-    location: "Austin,Texas,United States",
-    hl: "en",
-    gl: "us",
-  }),
-  new Calculator(),
-];
-
-const executor = await initializeAgentExecutorWithOptions(tools, model, {
-  agentType: "zero-shot-react-description",
-});
-console.log("Loaded agent.");
-
-const input =
-  "Who is Olivia Wilde's boyfriend?" +
-  " What is his current age raised to the 0.23 power?";
-console.log(`Executing with input "${input}"...`);
-
-const result = await executor.call({ input });
-
-console.log(`Got output ${result.output}`);
-
-
-// import { PromptTemplate } from "langchain/prompts"
-
-// const model = new OpenAI({, temperature: 0.9 });
-// const template = "What is a good name for a company that makes {product}?";
-// const prompt = new PromptTemplate({
-//   template: template,
-//   inputVariables: ["product"],
-// });
-
-// import { LLMChain } from "langchain/chains";
-
-// const chain = new LLMChain({ llm: model, prompt: prompt });
-
-// const res = await prompt.format({ product: "SALAM BRO" });
-// console.log(res);
-
-////////////////////////////////////////////////
 console.log(config.get('TEST_ENV'))
 
 const INITIAL_SESSION = {
@@ -64,17 +23,43 @@ bot.use(session())
 
 bot.command('new' , async (ctx) => {
     ctx.session = INITIAL_SESSION
-    await ctx.reply('Жду вашего голосового или текстового сообщения')
+    await ctx.reply('Привет! Я - Аяу, твоя менторка в увлекательный мир Дебат! Безумно рада с тобой познакомиться! Жду твой первый запрос')
 })
 
 bot.command('start', async (ctx) =>{
     await ctx.reply('Жду вашего голосового или текстового сообщения')
 })
 
+
+// bot.command('search', async (ctx) => {
+//   try {
+//     await ctx.reply(code('Введите ваш запрос для поиска:'))
+//     const searchQuery = await ctx.telegram.awaitMessages(
+//       (message) => message.from.id === ctx.from.id,
+//       { max: 1, timeout: 30000 }
+//     )
+//     const query = searchQuery[0].text
+
+//     const serpApi = new SerpAPI(config.get('SERPAPI_API_KEY'), {
+//       location: "Almaty,Almaty,Kazakhstan",
+//       hl: "en",
+//       gl: "us",
+//     })
+
+//     const searchResults = await serpApi.search(query)
+
+//     // Обработайте результаты поиска и отправьте ответ пользователю
+//     // ...
+
+//   } catch (e) {
+//     console.log('Error while searching:', e.message)
+//   }
+// })
+
 bot.on(message('voice'), async (ctx) =>{
     ctx.session ??= INITIAL_SESSION
     try{
-        await ctx.reply(code('Сообщение принял. Жду ответ от сервера'))
+        await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))
        const link = await ctx.telegram.getFileLink(ctx.message.voice.file_id)
        const userId= String (ctx.message.from.id)
        const ogaPath = await oga.create(link.href, userId)
@@ -103,25 +88,77 @@ bot.on(message('voice'), async (ctx) =>{
 
 console.log(INITIAL_SESSION)
 
+
+
+//у бота два режима: один ищет инфу в инете, второй генерирует идеи/аргументы
+let searchMode = false;
+
+bot.hears('/search', async (ctx) => {
+  ctx.session = INITIAL_SESSION;
+  await ctx.reply('Режим поиска активирован. Введите запрос для поиска информации.');
+  searchMode = true;
+});
+
+bot.command('/exit', async (ctx) => {
+  await ctx.reply('Режим поиска деактивирован. Введите текстовое или голосовое сообщение.');
+  searchMode = false;
+});
+
 bot.on(message('text'), async (ctx) =>{
     ctx.session ??= INITIAL_SESSION
-    try{
-        await ctx.reply(code('Сообщение принял. Жду ответ от сервера'))
+    if (searchMode){
+      try{
+      await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))  
+      const model = new OpenAI({ openAIApiKey: config.get('OPENAI_KEY'), temperature: 0 });
+      const embeddings = new OpenAIEmbeddings({ openAIApiKey: config.get('OPENAI_KEY') });
+      const tools = [
+        new SerpAPI(config.get('SERPAPI_API_KEY'), {
+          location: "Almaty,Almaty,Kazakhstan",
+          hl: "en",
+          gl: "us",
+        }),
+        new Calculator(),
+        new WebBrowser({ model, embeddings }),
+      ];
 
-       ctx.session.messages.push({role: openai.roles.USER,content: ctx.message.text,})
+      const executor = await initializeAgentExecutorWithOptions(tools, model, {
+        agentType: "zero-shot-react-description",
+        verbose: true,
+      });
 
-       const response = await openai.chat(ctx.session.messages)
+      const input = ctx.message.text;
 
-       ctx.session.messages.push({
+      console.log(`Executing with input "${input}"...`);
+
+      const result = await executor.call({ input });
+
+      console.log(`Got output ${JSON.stringify(result, null, 2)}`);
+
+      await ctx.reply(result.output);
+    }
+      catch(e){
+        console.log('Error while find news' , e.message)
+      }
+    } else{
+      try{
+        await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))
+
+      ctx.session.messages.push({role: openai.roles.USER,content: ctx.message.text,})
+
+      const response = await openai.chat(ctx.session.messages)
+
+      ctx.session.messages.push({
         role: openai.roles.ASSISTANT, 
         content: response.content,
     })
 
-       await ctx.reply(response.content)
+      await ctx.reply(response.content)
     } catch(e){
     console.log('Error while text message' , e.message)
-}
+    }
+  }
 })
+
 
 bot.launch()
 
