@@ -30,32 +30,6 @@ bot.command('start', async (ctx) =>{
     await ctx.reply('Жду вашего голосового или текстового сообщения')
 })
 
-
-// bot.command('search', async (ctx) => {
-//   try {
-//     await ctx.reply(code('Введите ваш запрос для поиска:'))
-//     const searchQuery = await ctx.telegram.awaitMessages(
-//       (message) => message.from.id === ctx.from.id,
-//       { max: 1, timeout: 30000 }
-//     )
-//     const query = searchQuery[0].text
-
-//     const serpApi = new SerpAPI(config.get('SERPAPI_API_KEY'), {
-//       location: "Almaty,Almaty,Kazakhstan",
-//       hl: "en",
-//       gl: "us",
-//     })
-
-//     const searchResults = await serpApi.search(query)
-
-//     // Обработайте результаты поиска и отправьте ответ пользователю
-//     // ...
-
-//   } catch (e) {
-//     console.log('Error while searching:', e.message)
-//   }
-// })
-
 bot.on(message('voice'), async (ctx) =>{
     ctx.session ??= INITIAL_SESSION
     try{
