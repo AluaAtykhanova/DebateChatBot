@@ -11,6 +11,8 @@ import { code } from 'telegraf/format'
 import { oga } from './oga.js'
 import { openai } from './openai.js'
 
+
+
 console.log(config.get('TEST_ENV'))
 
 const INITIAL_SESSION = {
@@ -21,13 +23,18 @@ const bot = new Telegraf(config.get('TELEGRAM_TOKEN'));
 
 bot.use(session())
 
+//у бота два режима: один ищет инфу в инете, второй генерирует идеи/аргументы
+let Mode = 1; //1 - Генератор Резолюций 2 - Поиск инфы в гугле 3 - Ссылки на полезные источники
+
 bot.command('new' , async (ctx) => {
-    ctx.session = INITIAL_SESSION
-    await ctx.reply('Привет! Я - Аяу, твоя менторка в увлекательный мир Дебат! Безумно рада с тобой познакомиться! Жду твой первый запрос')
+  Mode=1;
+  ctx.session = INITIAL_SESSION
+  await ctx.reply('Привет! Я - Аяу, твоя менторка в увлекательный мир Дебат! Безумно рада с тобой познакомиться! Жду твой первый запрос')
 })
 
 bot.command('start', async (ctx) =>{
-    await ctx.reply('Жду вашего голосового или текстового сообщения')
+  Mode= 1;
+  await ctx.reply('Жду вашего голосового или текстового сообщения')
 })
 
 bot.on(message('voice'), async (ctx) =>{
@@ -60,27 +67,44 @@ bot.on(message('voice'), async (ctx) =>{
 }
 })
 
-console.log(INITIAL_SESSION)
-
-
-
-//у бота два режима: один ищет инфу в инете, второй генерирует идеи/аргументы
-let searchMode = false;
-
-bot.hears('/search', async (ctx) => {
+bot.command('search', async (ctx) => {
   ctx.session = INITIAL_SESSION;
-  await ctx.reply('Режим поиска активирован. Введите запрос для поиска информации.');
-  searchMode = true;
+  await ctx.reply(code('Режим поиска активирован. Введите запрос для поиска информации.'));
+  Mode = 2;
 });
 
-bot.command('/exit', async (ctx) => {
-  await ctx.reply('Режим поиска деактивирован. Введите текстовое или голосовое сообщение.');
-  searchMode = false;
+bot.command('exit', async (ctx) => {
+  await ctx.reply(code('Режим поиска деактивирован. Введите текстовое или голосовое сообщение.'));
+  Mode = 1;
+});
+
+bot.command('ref', async (ctx) => {
+  ctx.session = INITIAL_SESSION;
+  await ctx.reply(code('Режим поиска классных ссылок активирован. Введите запрос для поиска информации.'));
+  Mode = 3;
 });
 
 bot.on(message('text'), async (ctx) =>{
     ctx.session ??= INITIAL_SESSION
-    if (searchMode){
+    if(Mode == 1 ){
+      try{
+      await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))
+
+      ctx.session.messages.push({role: openai.roles.USER,content:"Отвечай как ментор в дебатах.Если я прошу сгенерировать мне резолюцю ты отправишь мне резолюцию где ЭП будет означать какого то человека, который дальше в резолюции совершает какое либо действие формата 'ЭП ...'. Ты, как ментор в дебатах, знаешь что, ЭП-расшифровывается как: 'Эта Палата', то есть это орган который принимает то или иное решение. Резолюции должны состоять не больше чем из 10 слов. " + ctx.message.text,})
+
+      const response = await openai.chat(ctx.session.messages)
+
+      ctx.session.messages.push({
+        role: openai.roles.ASSISTANT, 
+        content: response.content,
+    })
+
+      await ctx.reply(response.content)
+    } catch(e){
+    console.log('Error while text message' , e.message)
+    }
+  }
+    else if (Mode==2){
       try{
       await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))  
       const model = new OpenAI({ openAIApiKey: config.get('OPENAI_KEY'), temperature: 0 });
@@ -117,21 +141,24 @@ bot.on(message('text'), async (ctx) =>{
       try{
         await ctx.reply(code('Сообщение приняла. Жду ответ от сервера'))
 
-      ctx.session.messages.push({role: openai.roles.USER,content: ctx.message.text,})
-
-      const response = await openai.chat(ctx.session.messages)
-
-      ctx.session.messages.push({
-        role: openai.roles.ASSISTANT, 
-        content: response.content,
-    })
-
-      await ctx.reply(response.content)
-    } catch(e){
-    console.log('Error while text message' , e.message)
+        const prompt_template = "Generate useful links related to " + ctx.message.text;
+  
+        ctx.session.messages.push({role: openai.roles.USER,content: prompt_template,})
+  
+        const response = await openai.chat(ctx.session.messages)
+  
+        ctx.session.messages.push({
+          role: openai.roles.ASSISTANT, 
+          content: response.content,
+      })
+  
+        await ctx.reply(response.content)
+      }catch(e){
+        console.log('Error while find helpfull links' , e.message)
+      }
     }
-  }
 })
+
 
 
 bot.launch()
