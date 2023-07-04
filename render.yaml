@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: DebateChatBot
+    runtime: docker
+    repo: https://github.com/AluaAtykhanova/DebateChatBot.git
+    plan: free
+    region: frankfurt
+    branch: maingit add
+    envVars:
+      - key: OPENAI_KEY
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: TEST_ENV
+        sync: false
