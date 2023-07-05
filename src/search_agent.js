@@ -1,11 +1,11 @@
-import config from 'config'
+import dotenv from 'dotenv'
 import { initializeAgentExecutorWithOptions } from "langchain/agents"
 import { OpenAIEmbeddings } from "langchain/embeddings/openai"
 import { OpenAI } from "langchain/llms/openai"
 import { SerpAPI } from "langchain/tools"
 import { Calculator } from "langchain/tools/calculator"
 import { WebBrowser } from "langchain/tools/webbrowser"
-
+dotenv.config();
 
 export const run = async () => {
   const model = new OpenAI({openAIApiKey:config.get('OPENAI_KEY'), temperature: 0 });
