@@ -1,4 +1,4 @@
-import config from "config";
+import dotenv from 'dotenv';
 import { initializeAgentExecutorWithOptions } from "langchain/agents";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import { OpenAI } from "langchain/llms/openai";
@@ -10,8 +10,14 @@ import { message } from "telegraf/filters";
 import { code } from "telegraf/format";
 import { oga } from "./oga.js";
 import { openai } from "./openai.js";
+dotenv.config();
 
-console.log(config.get("TEST_ENV"));
+const test_env=process.env.TEST_ENV
+const openai_key=process.env.OPENAI_KEY
+const telegram_token=process.env.TELEGRAM_TOKEN
+const serpapi_api_key=process.env.SERPAPI_API_KEY
+
+console.log(test_env);
 
 const INITIAL_SESSION = {
   messages: [
@@ -26,7 +32,7 @@ const INITIAL_SESSION = {
   ],
 };
 
-const bot = new Telegraf(config.get("TELEGRAM_TOKEN"));
+const bot = new Telegraf(telegram_token);
 
 bot.use(session());
 
@@ -149,14 +155,14 @@ bot.on(message("text"), async (ctx) => {
     try {
       await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
       const model = new OpenAI({
-        openAIApiKey: config.get("OPENAI_KEY"),
+        openAIApiKey: op,
         temperature: 0,
       });
       const embeddings = new OpenAIEmbeddings({
-        openAIApiKey: config.get("OPENAI_KEY"),
+        openAIApiKey: openai_key,
       });
       const tools = [
-        new SerpAPI(config.get("SERPAPI_API_KEY"), {
+        new SerpAPI(serpapi_api_key, {
           location: "Almaty,Almaty,Kazakhstan",
           hl: "en",
           gl: "us",
