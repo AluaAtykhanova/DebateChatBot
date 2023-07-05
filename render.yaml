@@ -5,7 +5,7 @@ services:
     repo: https://github.com/AluaAtykhanova/DebateChatBot.git
     plan: free
     region: frankfurt
-    branch: maingit add
+    branch: main
     envVars:
       - key: OPENAI_KEY
         sync: false
