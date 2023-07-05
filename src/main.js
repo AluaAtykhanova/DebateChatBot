@@ -12,13 +12,18 @@ import { oga } from "./oga.js";
 import { openai } from "./openai.js";
 dotenv.config();
 
+//Создаём переменные для ключей
 const test_env=process.env.TEST_ENV
 const openai_key=process.env.OPENAI_KEY
 const telegram_token=process.env.TELEGRAM_TOKEN
 const serpapi_api_key=process.env.SERPAPI_API_KEY
 
+//у бота несколько режимов
+let Mode = 1; //1 - Генератор Резолюций 2 - Поиск инфы в гугле 3 - Ссылки на полезные источники (?4 это батл с ботом по резам)
+
 console.log(test_env);
 
+//Создаём историю переписки, в этот массив мы будем добавлять новые сообщения в дальнейшем
 const INITIAL_SESSION = {
   messages: [
     {
@@ -31,13 +36,10 @@ const INITIAL_SESSION = {
     },
   ],
 };
-
+// Запускаем бота
 const bot = new Telegraf(telegram_token);
 
 bot.use(session());
-
-//у бота два режима: один ищет инфу в инете, второй генерирует идеи/аргументы
-let Mode = 1; //1 - Генератор Резолюций 2 - Поиск инфы в гугле 3 - Ссылки на полезные источники
 
 bot.command("new", async (ctx) => {
   Mode = 1;
