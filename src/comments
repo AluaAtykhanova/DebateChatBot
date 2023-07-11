@@ -50,3 +50,5 @@
 
 // const res = await prompt.format({ product: "SALAM BRO" });
 // console.log(res);
+
+//Что если поставить ему условие ищи инфу там
