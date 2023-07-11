@@ -32,7 +32,7 @@ export async function SearchAndSummurize(ctx, messageText) {
       verbose: true,
     });
     console.log("Loaded agent.");
-    const input = ctx.message.text;
+    const input = "Ответь на русском: " + ctx.message.text;
 
     console.log(`Executing with input "${input}"...`);
 
