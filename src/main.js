@@ -1,24 +1,27 @@
-import dotenv from 'dotenv';
-import { initializeAgentExecutorWithOptions } from "langchain/agents";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { OpenAI } from "langchain/llms/openai";
-import { SerpAPI } from "langchain/tools";
-import { Calculator } from "langchain/tools/calculator";
-import { WebBrowser } from "langchain/tools/webbrowser";
+import dotenv from "dotenv";
 import { Telegraf, session } from "telegraf";
 import { message } from "telegraf/filters";
 import { code } from "telegraf/format";
+import { ChatCompaion } from "./mode_chat.js";
+import { SearchAndGiveLinks } from "./mode_links.js";
+import { SearchAndSummurize } from "./mode_search.js";
 import { oga } from "./oga.js";
 import { openai } from "./openai.js";
+
 dotenv.config();
 
-const test_env=process.env.TEST_ENV
-const openai_key=process.env.OPENAI_KEY
-const telegram_token=process.env.TELEGRAM_TOKEN
-const serpapi_api_key=process.env.SERPAPI_API_KEY
+//Создаём переменные для ключей
+const test_env = process.env.TEST_ENV;
+const openai_key = process.env.OPENAI_KEY;
+const telegram_token = process.env.TELEGRAM_TOKEN;
+const serpapi_api_key = process.env.SERPAPI_API_KEY;
+
+//у бота несколько режимов
+let Mode = 1; //1 - Бот для болтовни И генерации резолюций  2 - Поиск инфы в гугле 3 - Ссылки на полезные источники (?)4-Вроде планируется как спаринг партнёр
 
 console.log(test_env);
 
+//Создаём историю переписки, в этот массив мы будем добавлять новые сообщения в дальнейшем
 const INITIAL_SESSION = {
   messages: [
     {
@@ -31,25 +34,64 @@ const INITIAL_SESSION = {
     },
   ],
 };
-
+// Запускаем бота
 const bot = new Telegraf(telegram_token);
 
 bot.use(session());
-
-//у бота два режима: один ищет инфу в инете, второй генерирует идеи/аргументы
-let Mode = 1; //1 - Генератор Резолюций 2 - Поиск инфы в гугле 3 - Ссылки на полезные источники
 
 bot.command("new", async (ctx) => {
   Mode = 1;
   ctx.session = INITIAL_SESSION;
   await ctx.reply(
-    "Привет! Я - Аяу, твоя менторка в увлекательный мир Дебат! Безумно рада с тобой познакомиться! Жду твой первый запрос"
+    "Привет! Я - Аяу, твоя менторка в увлекательный мир Дебат! Безумно рада с тобой познакомиться! Жду твой первый запрос",
   );
 });
 
 bot.command("start", async (ctx) => {
   Mode = 1;
   await ctx.reply("Жду вашего голосового или текстового сообщения");
+});
+
+bot.command("search", async (ctx) => {
+  ctx.session = INITIAL_SESSION;
+  await ctx.reply(
+    code("Режим поиска активирован. Введите запрос для поиска информации."),
+  );
+  Mode = 2;
+});
+
+bot.command("exit", async (ctx) => {
+  await ctx.reply(
+    code(
+      "Режим поиска деактивирован. Введите текстовое или голосовое сообщение.",
+    ),
+  );
+  Mode = 1;
+});
+
+bot.command("ref", async (ctx) => {
+  ctx.session = INITIAL_SESSION;
+  await ctx.reply(
+    code(
+      "Режим поиска классных ссылок активирован. Введите запрос для поиска информации.",
+    ),
+  );
+  Mode = 3;
+});
+
+bot.on(message("text"), async (ctx) => {
+  ctx.session ??= INITIAL_SESSION;
+  const messageText = ctx.message.text;
+  if (Mode == 1) {
+    await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
+    await ChatCompaion(ctx, messageText);
+  } else if (Mode == 2) {
+    await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
+    await SearchAndSummurize(ctx, messageText);
+  } else {
+    await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
+    await SearchAndGiveLinks(ctx, messageText);
+  }
 });
 
 bot.on(message("voice"), async (ctx) => {
@@ -79,138 +121,6 @@ bot.on(message("voice"), async (ctx) => {
     await ctx.reply(response.content);
   } catch (e) {
     console.log("Error while voice message", e.message);
-  }
-});
-
-bot.command("search", async (ctx) => {
-  ctx.session = INITIAL_SESSION;
-  await ctx.reply(
-    code("Режим поиска активирован. Введите запрос для поиска информации.")
-  );
-  Mode = 2;
-});
-
-bot.command("exit", async (ctx) => {
-  await ctx.reply(
-    code(
-      "Режим поиска деактивирован. Введите текстовое или голосовое сообщение."
-    )
-  );
-  Mode = 1;
-});
-
-bot.command("ref", async (ctx) => {
-  ctx.session = INITIAL_SESSION;
-  await ctx.reply(
-    code(
-      "Режим поиска классных ссылок активирован. Введите запрос для поиска информации."
-    )
-  );
-  Mode = 3;
-});
-
-bot.on(message("text"), async (ctx) => {
-  ctx.session ??= INITIAL_SESSION;
-  if (Mode == 1) {
-    try {
-      await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
-
-      // const MAX_MESSAGES = 3; // Максимальное количество сохраняемых сообщений
-      // // Находим индексы всех сообщений с ролью SYSTEM
-      // const systemMessageIndexes = ctx.session.messages.reduce(
-      //   (indexes, message, index) => {
-      //     if (message.role === openai.roles.SYSTEM) {
-      //       indexes.push(index);
-      //     }
-      //     return indexes;
-      //   },
-      //   []
-      // );
-
-      ctx.session.messages.push({
-        role: openai.roles.USER,
-        content:
-          "Если я прошу сгенерировать или дать мне резолюцю ты отправишь мне резолюцию где ЭП будет означать какого то человека, который дальше в резолюции совершает какое либо действие формата 'ЭП ...'" +
-          ctx.message.text,
-      });
-      console.log(
-        "___________________________________________________________________________________________________________________"
-      );
-      console.log(ctx.session.messages);
-      console.log(
-        "___________________________________________________________________________________________________________________"
-      );
-      const response = await openai.chat(ctx.session.messages);
-      console.log(response);
-      ctx.session.messages.push({
-        role: openai.roles.ASSISTANT,
-        content: response.content,
-      });
-
-      await ctx.reply(response.content);
-    } catch (e) {
-      console.log("Error while text message", e.message);
-    }
-  } else if (Mode == 2) {
-    try {
-      await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
-      const model = new OpenAI({
-        openAIApiKey: op,
-        temperature: 0,
-      });
-      const embeddings = new OpenAIEmbeddings({
-        openAIApiKey: openai_key,
-      });
-      const tools = [
-        new SerpAPI(serpapi_api_key, {
-          location: "Almaty,Almaty,Kazakhstan",
-          hl: "en",
-          gl: "us",
-        }),
-        new Calculator(),
-        new WebBrowser({ model, embeddings }),
-      ];
-
-      const executor = await initializeAgentExecutorWithOptions(tools, model, {
-        agentType: "zero-shot-react-description",
-        verbose: true,
-      });
-
-      const input = ctx.message.text;
-
-      console.log(`Executing with input "${input}"...`);
-
-      const result = await executor.call({ input });
-
-      console.log(`Got output ${JSON.stringify(result, null, 2)}`);
-
-      await ctx.reply(result.output);
-    } catch (e) {
-      console.log("Error while find news", e.message);
-    }
-  } else {
-    try {
-      await ctx.reply(code("Сообщение приняла. Жду ответ от сервера"));
-
-      const prompt_template =
-        "Generate useful links related to " + ctx.message.text;
-
-      ctx.session.messages.push({
-        role: openai.roles.USER,
-        content: prompt_template,
-      });
-
-      const response = await openai.chat(ctx.session.messages);
-      console.log(response);
-      ctx.session.messages.push({
-        role: openai.roles.ASSISTANT,
-        content: response.content,
-      });
-
-      await ctx.reply(response.content);
-    } catch (e) {
-      console.log("Error while find helpfull links", e.message);
-    }
   }
 });
 
