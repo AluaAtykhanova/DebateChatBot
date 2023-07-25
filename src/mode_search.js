@@ -43,5 +43,9 @@ export async function SearchAndSummurize(ctx, messageText) {
     await ctx.reply(result.output);
   } catch (e) {
     console.log("Error while find news", e.message);
+    ctx.session.messages.push({
+      role: openai.roles.ASSISTANT,
+      content: "Упс! Возникла ошибка, не мог бы ты повторить запрос?",
+    });
   }
 }
