@@ -8,7 +8,7 @@ import { WebBrowser } from "langchain/tools/webbrowser";
 dotenv.config();
 
 export async function SearchAndSummurize(ctx, messageText) {
-  console.log("Search_agent turn on");
+  console.log(messageText);
   try {
     const model = new OpenAI({
       openAIApiKey: process.env.OPENAI_KEY,
@@ -32,7 +32,7 @@ export async function SearchAndSummurize(ctx, messageText) {
       verbose: true,
     });
     console.log("Loaded agent.");
-    const input = "Ответь на русском: " + ctx.message.text;
+    const input = "Ответь на русском: " + messageText;
 
     console.log(`Executing with input "${input}"...`);
 
