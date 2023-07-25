@@ -30,6 +30,10 @@ export async function ChatCompaion(ctx, messageText) {
       await ctx.reply(response.content);
     } catch (e) {
       console.log("Ошибка при обработке текстового сообщения", e.message);
+      ctx.session.messages.push({
+        role: openai.roles.ASSISTANT,
+        content: "Упс! Возникла ошибка, не мог бы ты повторить запрос?",
+      });
     }
   }
   
