@@ -13,3 +13,5 @@ services:
         sync: false
       - key: TEST_ENV
         sync: false
+      - key: SERPAPI_API_KEY
+        sync: false
