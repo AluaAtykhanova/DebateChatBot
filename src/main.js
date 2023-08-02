@@ -13,9 +13,7 @@ dotenv.config();
 
 //Создаём переменные для ключей
 const test_env = process.env.TEST_ENV;
-const openai_key = process.env.OPENAI_KEY;
 const telegram_token = process.env.TELEGRAM_TOKEN;
-const serpapi_api_key = process.env.SERPAPI_API_KEY;
 
 //у бота несколько режимов
 let Mode = 1; //1 - Бот для болтовни И генерации резолюций  2 - Поиск инфы в гугле 3 - Ссылки на полезные источники (?)4-Вроде планируется как спаринг партнёр
