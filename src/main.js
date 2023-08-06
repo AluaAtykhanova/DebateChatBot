@@ -99,10 +99,8 @@ bot.on(message("voice"), async (ctx) => {
     // });
 
     if (Mode == 1) {
-      await ctx.reply(code("Режим Общения"));
       await ChatCompaion(ctx, messageText);
       } else if (Mode == 2) {
-        await ctx.reply(code("Режим ссылки"))
         await SearchAndSummurize(ctx, messageText);
       } else {
         await SearchAndGiveLinks(ctx, messageText);
